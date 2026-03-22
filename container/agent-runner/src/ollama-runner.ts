@@ -295,6 +295,15 @@ function buildSystemMessage(containerInput: ContainerInput): string {
     parts.push(fs.readFileSync(groupClaudeMd, 'utf-8').trim());
   }
 
+  // Auto-memory (MEMORY.md) — same location the Claude Code SDK uses
+  const memoryMd = '/home/node/.claude/projects/-workspace-group/memory/MEMORY.md';
+  if (fs.existsSync(memoryMd)) {
+    const memContent = fs.readFileSync(memoryMd, 'utf-8').trim();
+    if (memContent) {
+      parts.push(`## Memory\n\n${memContent}`);
+    }
+  }
+
   // Global CLAUDE.md (non-main groups only, same logic as Claude path)
   if (!containerInput.isMain) {
     const globalClaudeMd = '/workspace/global/CLAUDE.md';
