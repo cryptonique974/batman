@@ -152,7 +152,10 @@ class McpClient {
 }
 
 function mcpToolsToOllama(tools: McpTool[]): OllamaTool[] {
-  return tools.map(t => ({
+  // Exclude send_message: Ollama models call it repeatedly for intermediate
+  // updates, producing multiple messages per turn. For Ollama the final
+  // response text is the message — no intermediate delivery needed.
+  return tools.filter(t => t.name !== 'send_message').map(t => ({
     type: 'function' as const,
     function: {
       name: t.name,
@@ -277,6 +280,14 @@ async function runOllamaTurn(
 
 function buildSystemMessage(containerInput: ContainerInput): string {
   const parts: string[] = [];
+
+  // Model identity — injected first so the model can accurately answer "what model are you?"
+  const modelName = containerInput.ollamaModel ?? 'unknown';
+  parts.push(
+    `You are running locally via Ollama. Your model is: ${modelName}. ` +
+    `When asked what model or AI you are, answer that you are ${modelName} running locally via Ollama. ` +
+    `Do NOT say you are Claude or an Anthropic model.`
+  );
 
   // Group-specific CLAUDE.md
   const groupClaudeMd = '/workspace/group/CLAUDE.md';

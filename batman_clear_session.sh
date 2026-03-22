@@ -30,3 +30,5 @@ launchctl kickstart -k gui/$(id -u)/com.nanoclaw
 echo "  ✓ Service restarted"
 
 echo "Done. Next message will start a fresh session."
+
+./batman_restart.sh
