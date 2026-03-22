@@ -124,9 +124,7 @@ function createSchema(database: Database.Database): void {
     database.exec(
       `ALTER TABLE registered_groups ADD COLUMN model_provider TEXT DEFAULT 'claude'`,
     );
-    database.exec(
-      `ALTER TABLE registered_groups ADD COLUMN ollama_model TEXT`,
-    );
+    database.exec(`ALTER TABLE registered_groups ADD COLUMN ollama_model TEXT`);
   } catch {
     /* columns already exist */
   }
@@ -594,7 +592,8 @@ export function getRegisteredGroup(
     requiresTrigger:
       row.requires_trigger === null ? undefined : row.requires_trigger === 1,
     isMain: row.is_main === 1 ? true : undefined,
-    modelProvider: (row.model_provider as 'claude' | 'ollama' | null) ?? undefined,
+    modelProvider:
+      (row.model_provider as 'claude' | 'ollama' | null) ?? undefined,
     ollamaModel: row.ollama_model ?? undefined,
   };
 }
@@ -653,7 +652,8 @@ export function getAllRegisteredGroups(): Record<string, RegisteredGroup> {
       requiresTrigger:
         row.requires_trigger === null ? undefined : row.requires_trigger === 1,
       isMain: row.is_main === 1 ? true : undefined,
-      modelProvider: (row.model_provider as 'claude' | 'ollama' | null) ?? undefined,
+      modelProvider:
+        (row.model_provider as 'claude' | 'ollama' | null) ?? undefined,
       ollamaModel: row.ollama_model ?? undefined,
     };
   }
