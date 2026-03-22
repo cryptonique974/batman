@@ -219,11 +219,18 @@ export class WhatsAppChannel implements Channel {
             const fromMe = msg.key.fromMe || false;
             // Detect bot messages: with own number, fromMe is reliable
             // since only the bot sends from that number.
-            // With shared number, bot messages carry the assistant name prefix
-            // (even in DMs/self-chat) so we check for that.
-            const isBotMessage = ASSISTANT_HAS_OWN_NUMBER
-              ? fromMe
-              : content.startsWith(`${ASSISTANT_NAME}:`);
+            // Exception: self-chat (remoteJid = bot's own number) — all messages
+            // are fromMe=true but they are the owner talking to themselves,
+            // not bot outgoing messages. Never mark self-chat as bot message.
+            const botPhoneJid = this.sock.user
+              ? `${this.sock.user.id.split(':')[0].split('@')[0]}@s.whatsapp.net`
+              : null;
+            const isSelfChat = botPhoneJid !== null && chatJid === botPhoneJid;
+            const isBotMessage = isSelfChat
+              ? false
+              : ASSISTANT_HAS_OWN_NUMBER
+                ? fromMe
+                : content.startsWith(`${ASSISTANT_NAME}:`);
 
             this.opts.onMessage(chatJid, {
               id: msg.key.id || '',
