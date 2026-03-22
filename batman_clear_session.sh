@@ -13,10 +13,11 @@ echo "Clearing session for group: $GROUP"
 sqlite3 store/messages.db "DELETE FROM sessions WHERE group_folder='$GROUP';"
 echo "  ✓ DB session deleted"
 
-rm -rf "data/sessions/$GROUP/.claude/projects/" \
-       "data/sessions/$GROUP/.claude/backups/" \
+# Delete session .jsonl files but preserve memory/
+find "data/sessions/$GROUP/.claude/projects/" -name "*.jsonl" -delete 2>/dev/null || true
+rm -rf "data/sessions/$GROUP/.claude/backups/" \
        "data/sessions/$GROUP/.claude/plans/"
-echo "  ✓ Session files deleted"
+echo "  ✓ Session files deleted (memory preserved)"
 
 CONTAINERS=$(docker ps --filter "name=nanoclaw-$GROUP" -q)
 if [ -n "$CONTAINERS" ]; then
