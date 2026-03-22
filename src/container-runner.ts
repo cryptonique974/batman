@@ -41,6 +41,9 @@ export interface ContainerInput {
   isMain: boolean;
   isScheduledTask?: boolean;
   assistantName?: string;
+  // Ollama support: forwarded from RegisteredGroup config
+  modelProvider?: 'claude' | 'ollama';
+  ollamaModel?: string;
 }
 
 export interface ContainerOutput {
@@ -215,6 +218,7 @@ function buildVolumeMounts(
 function buildContainerArgs(
   mounts: VolumeMount[],
   containerName: string,
+  isOllama = false,
 ): string[] {
   const args: string[] = ['run', '-i', '--rm', '--name', containerName];
 
@@ -236,6 +240,11 @@ function buildContainerArgs(
     args.push('-e', 'ANTHROPIC_API_KEY=placeholder');
   } else {
     args.push('-e', 'CLAUDE_CODE_OAUTH_TOKEN=placeholder');
+  }
+
+  // Ollama groups need to reach the host's Ollama server
+  if (isOllama) {
+    args.push('-e', `OLLAMA_HOST=http://${CONTAINER_HOST_GATEWAY}:11434`);
   }
 
   // Runtime-specific args for host gateway resolution
@@ -278,7 +287,7 @@ export async function runContainerAgent(
   const mounts = buildVolumeMounts(group, input.isMain);
   const safeName = group.folder.replace(/[^a-zA-Z0-9-]/g, '-');
   const containerName = `nanoclaw-${safeName}-${Date.now()}`;
-  const containerArgs = buildContainerArgs(mounts, containerName);
+  const containerArgs = buildContainerArgs(mounts, containerName, input.modelProvider === 'ollama');
 
   logger.debug(
     {

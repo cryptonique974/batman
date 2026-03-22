@@ -40,6 +40,9 @@ export interface RegisteredGroup {
   containerConfig?: ContainerConfig;
   requiresTrigger?: boolean; // Default: true for groups, false for solo chats
   isMain?: boolean; // True for the main control group (no trigger, elevated privileges)
+  // Ollama support: if modelProvider is 'ollama', the agent uses Ollama instead of Claude
+  modelProvider?: 'claude' | 'ollama'; // defaults to 'claude' if absent
+  ollamaModel?: string; // e.g. 'llama3.2', required when modelProvider is 'ollama'
 }
 
 export interface NewMessage {

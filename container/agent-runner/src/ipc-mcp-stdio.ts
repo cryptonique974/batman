@@ -307,6 +307,8 @@ Use available_groups.json to find the JID for a group. The folder name must be c
     name: z.string().describe('Display name for the group'),
     folder: z.string().describe('Channel-prefixed folder name (e.g., "whatsapp_family-chat", "telegram_dev-team")'),
     trigger: z.string().describe('Trigger word (e.g., "@Andy")'),
+    model_provider: z.enum(['claude', 'ollama']).optional().describe('AI backend for this group. Defaults to "claude".'),
+    ollama_model: z.string().optional().describe('Ollama model name (e.g., "llama3.2"). Required when model_provider is "ollama".'),
   },
   async (args) => {
     if (!isMain) {
@@ -316,12 +318,14 @@ Use available_groups.json to find the JID for a group. The folder name must be c
       };
     }
 
-    const data = {
+    const data: Record<string, string | undefined> = {
       type: 'register_group',
       jid: args.jid,
       name: args.name,
       folder: args.folder,
       trigger: args.trigger,
+      model_provider: args.model_provider,
+      ollama_model: args.ollama_model,
       timestamp: new Date().toISOString(),
     };
 

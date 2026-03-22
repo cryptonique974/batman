@@ -18,6 +18,7 @@ import fs from 'fs';
 import path from 'path';
 import { query, HookCallback, PreCompactHookInput } from '@anthropic-ai/claude-agent-sdk';
 import { fileURLToPath } from 'url';
+import { runOllamaLoop } from './ollama-runner.js';
 
 interface ContainerInput {
   prompt: string;
@@ -27,6 +28,9 @@ interface ContainerInput {
   isMain: boolean;
   isScheduledTask?: boolean;
   assistantName?: string;
+  // Ollama support
+  modelProvider?: 'claude' | 'ollama';
+  ollamaModel?: string;
 }
 
 interface ContainerOutput {
@@ -479,6 +483,12 @@ async function main(): Promise<void> {
       error: `Failed to parse input: ${err instanceof Error ? err.message : String(err)}`
     });
     process.exit(1);
+  }
+
+  // Dispatch to Ollama runner when the group is configured for it
+  if (containerInput.modelProvider === 'ollama') {
+    await runOllamaLoop(containerInput);
+    return;
   }
 
   // Credentials are injected by the host's credential proxy via ANTHROPIC_BASE_URL.

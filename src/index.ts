@@ -321,6 +321,8 @@ async function runAgent(
         chatJid,
         isMain,
         assistantName: ASSISTANT_NAME,
+        modelProvider: group.modelProvider,
+        ollamaModel: group.ollamaModel,
       },
       (proc, containerName) =>
         queue.registerProcess(chatJid, proc, containerName, group.folder),
