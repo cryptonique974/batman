@@ -10,6 +10,9 @@ GROUP="$1"
 
 echo "Clearing session for group: $GROUP"
 
+launchctl unload ~/Library/LaunchAgents/com.nanoclaw.plist 
+sleep 1 
+
 sqlite3 store/messages.db "DELETE FROM sessions WHERE group_folder='$GROUP';"
 echo "  ✓ DB session deleted"
 
@@ -27,9 +30,10 @@ else
   echo "  ✓ No active container"
 fi
 
-launchctl kickstart -k gui/$(id -u)/com.nanoclaw
+launchctl load ~/Library/LaunchAgents/com.nanoclaw.plist
 echo "  ✓ Service restarted"
 
 echo "Done. Next message will start a fresh session."
 
-./batman_restart.sh
+
+
