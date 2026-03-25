@@ -12,7 +12,8 @@ import {
 
 const execFileAsync = promisify(execFile);
 
-const WHISPER_BIN = process.env.WHISPER_BIN || 'whisper-cli';
+const FFMPEG_BIN = process.env.FFMPEG_BIN || '/opt/homebrew/bin/ffmpeg';
+const WHISPER_BIN = process.env.WHISPER_BIN || '/opt/homebrew/bin/whisper-cli';
 const WHISPER_MODEL =
   process.env.WHISPER_MODEL ||
   path.join(process.cwd(), 'data', 'models', 'ggml-base.bin');
@@ -32,7 +33,7 @@ async function transcribeWithWhisperCpp(
 
     // Convert ogg/opus to 16kHz mono WAV (required by whisper.cpp)
     await execFileAsync(
-      'ffmpeg',
+      FFMPEG_BIN,
       ['-i', tmpOgg, '-ar', '16000', '-ac', '1', '-f', 'wav', '-y', tmpWav],
       { timeout: 30_000 },
     );

@@ -20,6 +20,7 @@ import {
 import { getLastGroupSync, setLastGroupSync, updateChatName } from '../db.js';
 import { logger } from '../logger.js';
 import { isVoiceMessage, transcribeAudioMessage } from '../transcription.js';
+import { synthesizeSpeech } from '../tts.js';
 import {
   Channel,
   OnInboundMessage,
@@ -45,6 +46,7 @@ export class WhatsAppChannel implements Channel {
   private outgoingQueue: Array<{ jid: string; text: string }> = [];
   private flushing = false;
   private groupSyncTimerStarted = false;
+  private voiceReplyJids = new Set<string>();
 
   private opts: WhatsAppChannelOpts;
 
@@ -252,6 +254,8 @@ export class WhatsAppChannel implements Channel {
                 logger.error({ err }, 'Voice transcription error');
                 finalContent = '[Voice Message - transcription failed]';
               }
+              // Flag this JID to receive a voice reply
+              this.voiceReplyJids.add(chatJid);
             }
 
             this.opts.onMessage(chatJid, {
@@ -276,6 +280,9 @@ export class WhatsAppChannel implements Channel {
   }
 
   async sendMessage(jid: string, text: string): Promise<void> {
+    const voiceReply = this.voiceReplyJids.has(jid);
+    this.voiceReplyJids.delete(jid);
+
     if (!this.connected) {
       this.outgoingQueue.push({ jid, text });
       logger.info(
@@ -284,6 +291,25 @@ export class WhatsAppChannel implements Channel {
       );
       return;
     }
+
+    if (voiceReply) {
+      try {
+        const audioBuffer = await synthesizeSpeech(text);
+        if (audioBuffer) {
+          await this.sock.sendMessage(jid, {
+            audio: audioBuffer,
+            mimetype: 'audio/ogg; codecs=opus',
+            ptt: true,
+          });
+          logger.info({ jid, bytes: audioBuffer.length }, 'Voice reply sent');
+          return;
+        }
+        logger.warn({ jid }, 'TTS synthesis failed, falling back to text');
+      } catch (err) {
+        logger.error({ err, jid }, 'TTS send error, falling back to text');
+      }
+    }
+
     try {
       await this.sock.sendMessage(jid, { text });
       logger.info({ jid, length: text.length }, 'Message sent');
@@ -418,7 +444,9 @@ export class WhatsAppChannel implements Channel {
 registerChannel('whatsapp', (opts: ChannelOpts) => {
   const authDir = path.join(STORE_DIR, 'auth');
   if (!fs.existsSync(path.join(authDir, 'creds.json'))) {
-    logger.warn('WhatsApp: credentials not found. Run /add-whatsapp to authenticate.');
+    logger.warn(
+      'WhatsApp: credentials not found. Run /add-whatsapp to authenticate.',
+    );
     return null;
   }
   return new WhatsAppChannel(opts);
