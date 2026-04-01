@@ -22,7 +22,7 @@ const FALLBACK_MESSAGE = '[Voice Message - transcription unavailable]';
 
 async function transcribeWithWhisperCpp(
   audioBuffer: Buffer,
-): Promise<string | null> {
+): Promise<{ text: string | null; language: string | null }> {
   const tmpDir = os.tmpdir();
   const id = `nanoclaw-voice-${Date.now()}`;
   const tmpOgg = path.join(tmpDir, `${id}.ogg`);
@@ -38,17 +38,22 @@ async function transcribeWithWhisperCpp(
       { timeout: 30_000 },
     );
 
-    const { stdout } = await execFileAsync(
+    const { stdout, stderr } = await execFileAsync(
       WHISPER_BIN,
-      ['-m', WHISPER_MODEL, '-f', tmpWav, '--no-timestamps', '-nt'],
+      ['-m', WHISPER_MODEL, '-f', tmpWav, '--no-timestamps', '-nt', '-l', 'auto'],
       { timeout: 60_000 },
     );
 
-    const transcript = stdout.trim();
-    return transcript || null;
+    const text = stdout.trim() || null;
+
+    // Format: "whisper_full_with_state: auto-detected language: en (p = 0.xx)"
+    const langMatch = stderr.match(/auto-detected language:\s+([a-z]{2,3})/i);
+    const language = langMatch ? langMatch[1].toLowerCase() : null;
+
+    return { text, language };
   } catch (err) {
     console.error('whisper.cpp transcription failed:', err);
-    return null;
+    return { text: null, language: null };
   } finally {
     for (const f of [tmpOgg, tmpWav]) {
       try {
@@ -63,7 +68,7 @@ async function transcribeWithWhisperCpp(
 export async function transcribeAudioMessage(
   msg: WAMessage,
   sock: WASocket,
-): Promise<string | null> {
+): Promise<{ text: string; language: string | null }> {
   try {
     const buffer = (await downloadMediaMessage(
       msg,
@@ -78,19 +83,19 @@ export async function transcribeAudioMessage(
 
     if (!buffer || buffer.length === 0) {
       console.error('Failed to download audio message');
-      return FALLBACK_MESSAGE;
+      return { text: FALLBACK_MESSAGE, language: null };
     }
 
-    const transcript = await transcribeWithWhisperCpp(buffer);
+    const { text, language } = await transcribeWithWhisperCpp(buffer);
 
-    if (!transcript) {
-      return FALLBACK_MESSAGE;
+    if (!text) {
+      return { text: FALLBACK_MESSAGE, language: null };
     }
 
-    return transcript.trim();
+    return { text: text.trim(), language };
   } catch (err) {
     console.error('Transcription error:', err);
-    return FALLBACK_MESSAGE;
+    return { text: FALLBACK_MESSAGE, language: null };
   }
 }
 

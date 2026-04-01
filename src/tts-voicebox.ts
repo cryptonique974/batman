@@ -62,10 +62,14 @@ const VOICEBOX_SPEED = parseFloat(_cfg('VOICEBOX_SPEED', '1.0'));
  * @returns `true` if the text is likely French.
  */
 function isFrench(text: string): boolean {
+  // Default to French unless clearly English-only
   if (/[àâäéèêëîïôùûüçœæ]/i.test(text)) return true;
   const frWords =
-    /\b(je|tu|il|elle|nous|vous|ils|elles|le|la|les|un|une|des|du|de|et|est|pas|que|qui|dans|sur|avec|pour|par|mais|ou|donc|car|ni|or|je suis|c'est|n'est|vous|votre|notre|leur|leurs|bonjour|merci|oui|non|peut|aussi|très|plus|bien|tout|fait)\b/i;
-  return frWords.test(text);
+    /\b(je|tu|il|elle|nous|vous|ils|elles|le|la|les|un|une|des|du|de|et|est|pas|que|qui|dans|sur|avec|pour|par|mais|ou|donc|car|ni|or|suis|c'est|n'est|votre|notre|leur|leurs|bonjour|merci|oui|non|peut|aussi|très|plus|bien|tout|fait)\b/i;
+  if (frWords.test(text)) return true;
+  // Only switch to English if the text has clear English markers and no French ones
+  const enOnly = /\b(the|this|that|these|those|with|have|from|they|will|your|what|when|where|which|there|their|would|could|should|about|because)\b/i;
+  return !enOnly.test(text); // default FR
 }
 
 /**
@@ -83,8 +87,8 @@ function isFrench(text: string): boolean {
  * @sideEffects Makes an HTTP POST to `VOICEBOX_URL`; writes and deletes temp files in `os.tmpdir()`;
  *   spawns an `ffmpeg` subprocess.
  */
-export function synthesizeSpeech(text: string): Promise<Buffer | null> {
-  const task = _generationQueue.then(() => _synthesize(text));
+export function synthesizeSpeech(text: string, detectedLang?: string | null): Promise<Buffer | null> {
+  const task = _generationQueue.then(() => _synthesize(text, detectedLang));
   _generationQueue = task.then(
     () => undefined,
     () => undefined,
@@ -92,15 +96,14 @@ export function synthesizeSpeech(text: string): Promise<Buffer | null> {
   return task;
 }
 
-async function _synthesize(text: string): Promise<Buffer | null> {
-  const fr = isFrench(text);
-  const profileId = fr ? VOICEBOX_PROFILE_FR : VOICEBOX_PROFILE_EN;
-  const language = fr ? 'fr' : 'en';
+async function _synthesize(text: string, detectedLang?: string | null): Promise<Buffer | null> {
+  const language = detectedLang ?? (isFrench(text) ? 'fr' : 'en');
+  const profileId = language === 'fr'
+    ? (VOICEBOX_PROFILE_FR || VOICEBOX_PROFILE_EN)
+    : (VOICEBOX_PROFILE_EN || VOICEBOX_PROFILE_FR);
 
   if (!profileId) {
-    console.error(
-      `TTS Voicebox: profile ID not configured (${fr ? 'VOICEBOX_VOICE_FR' : 'VOICEBOX_VOICE_EN'})`,
-    );
+    console.error('TTS Voicebox: no profile ID configured (set VOICEBOX_VOICE_FR or VOICEBOX_VOICE_EN)');
     return null;
   }
 

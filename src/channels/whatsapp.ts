@@ -47,6 +47,7 @@ export class WhatsAppChannel implements Channel {
   private flushing = false;
   private groupSyncTimerStarted = false;
   private voiceReplyJids = new Set<string>();
+  private voiceReplyLang: Record<string, string> = {};
 
   private opts: WhatsAppChannelOpts;
 
@@ -240,13 +241,14 @@ export class WhatsAppChannel implements Channel {
             let finalContent = content;
             if (isVoiceMessage(msg)) {
               try {
-                const transcript = await transcribeAudioMessage(msg, this.sock);
-                if (transcript) {
-                  finalContent = `[Voice: ${transcript}]`;
+                const { text, language } = await transcribeAudioMessage(msg, this.sock);
+                if (text) {
+                  finalContent = `[Voice: ${text}]`;
                   logger.info(
-                    { chatJid, length: transcript.length },
+                    { chatJid, length: text.length, language },
                     'Transcribed voice message',
                   );
+                  if (language) this.voiceReplyLang[chatJid] = language;
                 } else {
                   finalContent = '[Voice Message - transcription unavailable]';
                 }
@@ -282,6 +284,8 @@ export class WhatsAppChannel implements Channel {
   async sendMessage(jid: string, text: string): Promise<void> {
     const voiceReply = this.voiceReplyJids.has(jid);
     this.voiceReplyJids.delete(jid);
+    const voiceLang = this.voiceReplyLang[jid] ?? null;
+    delete this.voiceReplyLang[jid];
 
     if (!this.connected) {
       this.outgoingQueue.push({ jid, text });
@@ -294,7 +298,7 @@ export class WhatsAppChannel implements Channel {
 
     if (voiceReply) {
       try {
-        const audioBuffer = await synthesizeSpeech(text);
+        const audioBuffer = await synthesizeSpeech(text, voiceLang);
         if (audioBuffer) {
           await this.sock.sendMessage(jid, {
             audio: audioBuffer,
