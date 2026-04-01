@@ -54,6 +54,8 @@ export interface NewMessage {
   timestamp: string;
   is_from_me?: boolean;
   is_bot_message?: boolean;
+  /** Container path to a downloaded image, if the message contained one */
+  image_path?: string;
 }
 
 export interface ScheduledTask {

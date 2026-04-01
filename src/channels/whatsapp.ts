@@ -6,6 +6,7 @@ import makeWASocket, {
   Browsers,
   DisconnectReason,
   WASocket,
+  downloadMediaMessage,
   fetchLatestWaWebVersion,
   makeCacheableSignalKeyStore,
   normalizeMessageContent,
@@ -15,6 +16,7 @@ import makeWASocket, {
 import {
   ASSISTANT_HAS_OWN_NUMBER,
   ASSISTANT_NAME,
+  GROUPS_DIR,
   STORE_DIR,
 } from '../config.js';
 import { getLastGroupSync, setLastGroupSync, updateChatName } from '../db.js';
@@ -207,6 +209,7 @@ export class WhatsAppChannel implements Channel {
           // Only deliver full message for registered groups
           const groups = this.opts.registeredGroups();
           if (groups[chatJid]) {
+            const isImage = !!normalized.imageMessage;
             const content =
               normalized.conversation ||
               normalized.extendedTextMessage?.text ||
@@ -215,8 +218,8 @@ export class WhatsAppChannel implements Channel {
               '';
 
             // Skip protocol messages with no text content (encryption keys, read receipts, etc.)
-            // but allow voice messages through for transcription
-            if (!content && !isVoiceMessage(msg)) continue;
+            // but allow voice messages and image messages through
+            if (!content && !isVoiceMessage(msg) && !isImage) continue;
 
             const sender = msg.key.participant || msg.key.remoteJid || '';
             const senderName = msg.pushName || sender.split('@')[0];
@@ -239,6 +242,8 @@ export class WhatsAppChannel implements Channel {
 
             // Transcribe voice messages before storing
             let finalContent = content;
+            let imagePath: string | undefined;
+
             if (isVoiceMessage(msg)) {
               try {
                 const { text, language } = await transcribeAudioMessage(
@@ -263,6 +268,49 @@ export class WhatsAppChannel implements Channel {
               this.voiceReplyJids.add(chatJid);
             }
 
+            // Download and save image messages
+            if (isImage) {
+              try {
+                const imageBuffer = (await downloadMediaMessage(
+                  msg,
+                  'buffer',
+                  {},
+                  {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    logger: console as any,
+                    reuploadRequest: this.sock.updateMediaMessage,
+                  },
+                )) as Buffer;
+
+                const mimetype =
+                  normalized.imageMessage!.mimetype || 'image/jpeg';
+                const ext = mimetype.includes('png')
+                  ? 'png'
+                  : mimetype.includes('webp')
+                    ? 'webp'
+                    : 'jpg';
+                const filename = `img-${Date.now()}-${msg.key.id || 'unknown'}.${ext}`;
+                const folder = groups[chatJid].folder;
+                const mediaDir = path.join(
+                  GROUPS_DIR,
+                  folder,
+                  'media',
+                  'images',
+                );
+                fs.mkdirSync(mediaDir, { recursive: true });
+                fs.writeFileSync(path.join(mediaDir, filename), imageBuffer);
+                imagePath = `/workspace/group/media/images/${filename}`;
+                if (!finalContent) finalContent = '[Image]';
+                logger.info(
+                  { chatJid, filename, bytes: imageBuffer.length },
+                  'Image saved',
+                );
+              } catch (err) {
+                logger.error({ err }, 'Failed to download/save image');
+                if (!finalContent) finalContent = '[Image - download failed]';
+              }
+            }
+
             this.opts.onMessage(chatJid, {
               id: msg.key.id || '',
               chat_jid: chatJid,
@@ -272,6 +320,7 @@ export class WhatsAppChannel implements Channel {
               timestamp,
               is_from_me: fromMe,
               is_bot_message: isBotMessage,
+              image_path: imagePath,
             });
           }
         } catch (err) {
