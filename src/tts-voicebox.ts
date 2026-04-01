@@ -68,7 +68,8 @@ function isFrench(text: string): boolean {
     /\b(je|tu|il|elle|nous|vous|ils|elles|le|la|les|un|une|des|du|de|et|est|pas|que|qui|dans|sur|avec|pour|par|mais|ou|donc|car|ni|or|suis|c'est|n'est|votre|notre|leur|leurs|bonjour|merci|oui|non|peut|aussi|très|plus|bien|tout|fait)\b/i;
   if (frWords.test(text)) return true;
   // Only switch to English if the text has clear English markers and no French ones
-  const enOnly = /\b(the|this|that|these|those|with|have|from|they|will|your|what|when|where|which|there|their|would|could|should|about|because)\b/i;
+  const enOnly =
+    /\b(the|this|that|these|those|with|have|from|they|will|your|what|when|where|which|there|their|would|could|should|about|because)\b/i;
   return !enOnly.test(text); // default FR
 }
 
@@ -87,7 +88,10 @@ function isFrench(text: string): boolean {
  * @sideEffects Makes an HTTP POST to `VOICEBOX_URL`; writes and deletes temp files in `os.tmpdir()`;
  *   spawns an `ffmpeg` subprocess.
  */
-export function synthesizeSpeech(text: string, detectedLang?: string | null): Promise<Buffer | null> {
+export function synthesizeSpeech(
+  text: string,
+  detectedLang?: string | null,
+): Promise<Buffer | null> {
   const task = _generationQueue.then(() => _synthesize(text, detectedLang));
   _generationQueue = task.then(
     () => undefined,
@@ -96,14 +100,20 @@ export function synthesizeSpeech(text: string, detectedLang?: string | null): Pr
   return task;
 }
 
-async function _synthesize(text: string, detectedLang?: string | null): Promise<Buffer | null> {
+async function _synthesize(
+  text: string,
+  detectedLang?: string | null,
+): Promise<Buffer | null> {
   const language = detectedLang ?? (isFrench(text) ? 'fr' : 'en');
-  const profileId = language === 'fr'
-    ? (VOICEBOX_PROFILE_FR || VOICEBOX_PROFILE_EN)
-    : (VOICEBOX_PROFILE_EN || VOICEBOX_PROFILE_FR);
+  const profileId =
+    language === 'fr'
+      ? VOICEBOX_PROFILE_FR || VOICEBOX_PROFILE_EN
+      : VOICEBOX_PROFILE_EN || VOICEBOX_PROFILE_FR;
 
   if (!profileId) {
-    console.error('TTS Voicebox: no profile ID configured (set VOICEBOX_VOICE_FR or VOICEBOX_VOICE_EN)');
+    console.error(
+      'TTS Voicebox: no profile ID configured (set VOICEBOX_VOICE_FR or VOICEBOX_VOICE_EN)',
+    );
     return null;
   }
 
