@@ -1,0 +1,35 @@
+#!/bin/bash
+BATMAN_SCRIPTS_DIR="/Users/mat/batman/batman_scripts"
+
+show_help() {
+  echo "Usage: batman <command> [args...]"
+  echo ""
+  echo "Run NanoClaw scripts from anywhere."
+  echo ""
+  echo "Available commands:"
+  for f in "$BATMAN_SCRIPTS_DIR"/batman_*.sh; do
+    name=$(basename "$f" .sh | sed 's/^batman_//')
+    echo "  $name"
+  done
+  echo ""
+  echo "Options:"
+  echo "  --help, -h    Show this help"
+}
+
+if [ $# -eq 0 ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+  show_help
+  exit 0
+fi
+
+cmd="$1"
+shift
+script="$BATMAN_SCRIPTS_DIR/batman_${cmd}.sh"
+
+if [ ! -f "$script" ]; then
+  echo "batman: unknown command '$cmd'"
+  echo "Run 'batman' to list available commands."
+  exit 1
+fi
+
+cd /Users/mat/batman
+exec bash "$script" "$@"

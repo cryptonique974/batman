@@ -64,7 +64,9 @@ server.tool(
 
 server.tool(
   'schedule_task',
-  `Schedule a recurring or one-time task. The task will run as a full agent with access to all tools. Returns the task ID for future reference. To modify an existing task, use update_task instead.
+  `Schedule a task (one-time or recurring). The task will run as a full agent with access to all tools. Returns the task ID for future reference. To modify an existing task, use update_task instead.
+
+DEFAULT TO "once" unless the user explicitly asks for recurrence (e.g., "every day", "every hour", "remind me every…"). A request like "remind me tomorrow" or "do X at 3pm" is a one-time task.
 
 CONTEXT MODE - Choose based on task type:
 \u2022 "group": Task runs in the group's conversation context, with access to chat history. Use for tasks that need context about ongoing discussions, user preferences, or recent interactions.
@@ -87,7 +89,7 @@ SCHEDULE VALUE FORMAT (all times are LOCAL timezone):
 \u2022 once: Local time WITHOUT "Z" suffix (e.g., "2026-02-01T15:30:00"). Do NOT use UTC/Z suffix.`,
   {
     prompt: z.string().describe('What the agent should do when the task runs. For isolated mode, include all necessary context here.'),
-    schedule_type: z.enum(['cron', 'interval', 'once']).describe('cron=recurring at specific times, interval=recurring every N ms, once=run once at specific time'),
+    schedule_type: z.enum(['cron', 'interval', 'once']).describe('once=run once at a specific time (DEFAULT), cron=recurring at specific times, interval=recurring every N ms'),
     schedule_value: z.string().describe('cron: "*/5 * * * *" | interval: milliseconds like "300000" | once: local timestamp like "2026-02-01T15:30:00" (no Z suffix!)'),
     context_mode: z.enum(['group', 'isolated']).default('group').describe('group=runs with chat history and memory, isolated=fresh session (include context in prompt)'),
     target_group_jid: z.string().optional().describe('(Main group only) JID of the group to schedule the task for. Defaults to the current group.'),
