@@ -8,8 +8,12 @@ import { readEnvFile } from './env.js';
 
 // Read Voicebox config from .env (process.env/plist takes priority if set)
 const _env = readEnvFile([
-  'VOICEBOX_URL', 'VOICEBOX_VOICE_FR', 'VOICEBOX_VOICE_EN',
-  'VOICEBOX_INSTRUCT', 'VOICEBOX_SPEED', 'FFMPEG_BIN',
+  'VOICEBOX_URL',
+  'VOICEBOX_VOICE_FR',
+  'VOICEBOX_VOICE_EN',
+  'VOICEBOX_INSTRUCT',
+  'VOICEBOX_SPEED',
+  'FFMPEG_BIN',
 ]);
 function _cfg(key: string, fallback: string): string {
   return process.env[key] || _env[key] || fallback;
@@ -81,7 +85,10 @@ function isFrench(text: string): boolean {
  */
 export function synthesizeSpeech(text: string): Promise<Buffer | null> {
   const task = _generationQueue.then(() => _synthesize(text));
-  _generationQueue = task.then(() => undefined, () => undefined);
+  _generationQueue = task.then(
+    () => undefined,
+    () => undefined,
+  );
   return task;
 }
 
@@ -106,7 +113,12 @@ async function _synthesize(text: string): Promise<Buffer | null> {
     const response = await fetch(`${VOICEBOX_URL}/generate/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ profile_id: profileId, text, language, instruct: VOICEBOX_INSTRUCT }),
+      body: JSON.stringify({
+        profile_id: profileId,
+        text,
+        language,
+        instruct: VOICEBOX_INSTRUCT,
+      }),
       signal: AbortSignal.timeout(120_000),
     });
 
@@ -121,7 +133,24 @@ async function _synthesize(text: string): Promise<Buffer | null> {
 
     await execFileAsync(
       FFMPEG_BIN,
-      ['-i', tmpWav, '-filter:a', `atempo=${VOICEBOX_SPEED}`, '-c:a', 'libopus', '-b:a', '32k', '-vbr', 'on', '-ar', '48000', '-ac', '1', '-y', tmpOgg],
+      [
+        '-i',
+        tmpWav,
+        '-filter:a',
+        `atempo=${VOICEBOX_SPEED}`,
+        '-c:a',
+        'libopus',
+        '-b:a',
+        '32k',
+        '-vbr',
+        'on',
+        '-ar',
+        '48000',
+        '-ac',
+        '1',
+        '-y',
+        tmpOgg,
+      ],
       { timeout: 30_000 },
     );
 

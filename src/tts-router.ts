@@ -18,24 +18,26 @@ import { synthesizeSpeech as _synthesize } from './tts-voicebox.js';
  * @returns Clean plain text suitable for speech synthesis.
  */
 function cleanForTTS(text: string): string {
-  return text
-    // Remove emojis
-    .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '')
-    // Remove WhatsApp/markdown formatting: *bold*, _italic_, ~strikethrough~, ```code```
-    .replace(/```[\s\S]*?```/g, '')
-    .replace(/`[^`]*`/g, '')
-    .replace(/\*+([^*]+)\*+/g, '$1')
-    .replace(/_+([^_]+)_+/g, '$1')
-    .replace(/~+([^~]+)~+/g, '$1')
-    // Remove markdown headers
-    .replace(/^#{1,6}\s+/gm, '')
-    // Remove bullet points / list markers
-    .replace(/^[\s]*[-*•]\s+/gm, '')
-    .replace(/^[\s]*\d+\.\s+/gm, '')
-    // Collapse multiple spaces/newlines
-    .replace(/\n{3,}/g, '\n\n')
-    .replace(/[ \t]{2,}/g, ' ')
-    .trim();
+  return (
+    text
+      // Remove emojis
+      .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '')
+      // Remove WhatsApp/markdown formatting: *bold*, _italic_, ~strikethrough~, ```code```
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/`[^`]*`/g, '')
+      .replace(/\*+([^*]+)\*+/g, '$1')
+      .replace(/_+([^_]+)_+/g, '$1')
+      .replace(/~+([^~]+)~+/g, '$1')
+      // Remove markdown headers
+      .replace(/^#{1,6}\s+/gm, '')
+      // Remove bullet points / list markers
+      .replace(/^[\s]*[-*•]\s+/gm, '')
+      .replace(/^[\s]*\d+\.\s+/gm, '')
+      // Collapse multiple spaces/newlines
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/[ \t]{2,}/g, ' ')
+      .trim()
+  );
 }
 
 /**
@@ -46,4 +48,5 @@ function cleanForTTS(text: string): string {
  * @param text - Raw text to synthesize (markdown and emojis will be stripped).
  * @returns An ogg/opus `Buffer` for use as a WhatsApp voice note, or `null` on failure.
  */
-export const synthesizeSpeech = (text: string) => _synthesize(cleanForTTS(text));
+export const synthesizeSpeech = (text: string) =>
+  _synthesize(cleanForTTS(text));

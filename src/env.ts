@@ -28,7 +28,10 @@ export function readEnvFile(keys: string[]): Record<string, string> {
     if (eqIdx === -1) continue;
     const key = trimmed.slice(0, eqIdx).trim();
     if (!wanted.has(key)) continue;
-    let value = trimmed.slice(eqIdx + 1).replace(/#.*$/, '').trim();
+    let value = trimmed
+      .slice(eqIdx + 1)
+      .replace(/#.*$/, '')
+      .trim();
     if (
       (value.startsWith('"') && value.endsWith('"')) ||
       (value.startsWith("'") && value.endsWith("'"))
