@@ -30,12 +30,10 @@ vi.mock('../db.js', () => ({
 // Mock transcription
 vi.mock('../transcription.js', () => ({
   isVoiceMessage: vi.fn((msg: any) => msg.message?.audioMessage?.ptt === true),
-  transcribeAudioMessage: vi
-    .fn()
-    .mockResolvedValue({
-      text: 'Hello this is a voice message',
-      language: 'en',
-    }),
+  transcribeAudioMessage: vi.fn().mockResolvedValue({
+    text: 'Hello this is a voice message',
+    language: 'en',
+  }),
 }));
 
 // Mock fs
