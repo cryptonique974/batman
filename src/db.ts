@@ -685,7 +685,9 @@ export function getDashboardTasks(): Array<Record<string, unknown>> {
     .all() as Array<Record<string, unknown>>;
 }
 
-export function getDashboardMessages(limit: number): Array<Record<string, unknown>> {
+export function getDashboardMessages(
+  limit: number,
+): Array<Record<string, unknown>> {
   return db
     .prepare(
       `SELECT m.id, m.chat_jid, m.sender, m.sender_name, m.content, m.timestamp,

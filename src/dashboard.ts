@@ -282,67 +282,69 @@ const HTML = /* html */ `<!DOCTYPE html>
 export function startDashboard(): void {
   const port = DASHBOARD_PORT;
 
-  const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
-    const url = req.url ?? '/';
-    const method = req.method ?? 'GET';
+  const server = createServer(
+    async (req: IncomingMessage, res: ServerResponse) => {
+      const url = req.url ?? '/';
+      const method = req.method ?? 'GET';
 
-    // PATCH /api/tasks/:id
-    const taskMatch = url.match(/^\/api\/tasks\/([^/]+)$/);
+      // PATCH /api/tasks/:id
+      const taskMatch = url.match(/^\/api\/tasks\/([^/]+)$/);
 
-    if (url === '/' || url === '/index.html') {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(HTML);
-      return;
-    }
-
-    if (url === '/api/groups' && method === 'GET') {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(getDashboardGroups()));
-      return;
-    }
-
-    if (url === '/api/tasks' && method === 'GET') {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(getDashboardTasks()));
-      return;
-    }
-
-    if (taskMatch && method === 'PATCH') {
-      const id = decodeURIComponent(taskMatch[1]);
-      try {
-        const raw = await readBody(req);
-        const body = JSON.parse(raw) as Record<string, string>;
-        updateTask(id, {
-          prompt: body.prompt,
-          schedule_type: body.schedule_type as 'cron' | 'interval' | 'once',
-          schedule_value: body.schedule_value,
-          status: body.status as 'active' | 'paused' | 'completed',
-        });
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end('{"ok":true}');
-      } catch (err) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: String(err) }));
+      if (url === '/' || url === '/index.html') {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(HTML);
+        return;
       }
-      return;
-    }
 
-    if (taskMatch && method === 'DELETE') {
-      const id = decodeURIComponent(taskMatch[1]);
-      try {
-        deleteTask(id);
+      if (url === '/api/groups' && method === 'GET') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end('{"ok":true}');
-      } catch (err) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: String(err) }));
+        res.end(JSON.stringify(getDashboardGroups()));
+        return;
       }
-      return;
-    }
 
-    res.writeHead(404);
-    res.end('Not found');
-  });
+      if (url === '/api/tasks' && method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(getDashboardTasks()));
+        return;
+      }
+
+      if (taskMatch && method === 'PATCH') {
+        const id = decodeURIComponent(taskMatch[1]);
+        try {
+          const raw = await readBody(req);
+          const body = JSON.parse(raw) as Record<string, string>;
+          updateTask(id, {
+            prompt: body.prompt,
+            schedule_type: body.schedule_type as 'cron' | 'interval' | 'once',
+            schedule_value: body.schedule_value,
+            status: body.status as 'active' | 'paused' | 'completed',
+          });
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end('{"ok":true}');
+        } catch (err) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: String(err) }));
+        }
+        return;
+      }
+
+      if (taskMatch && method === 'DELETE') {
+        const id = decodeURIComponent(taskMatch[1]);
+        try {
+          deleteTask(id);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end('{"ok":true}');
+        } catch (err) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: String(err) }));
+        }
+        return;
+      }
+
+      res.writeHead(404);
+      res.end('Not found');
+    },
+  );
 
   server.listen(port, '127.0.0.1', () => {
     logger.info(`Dashboard: http://localhost:${port}`);
