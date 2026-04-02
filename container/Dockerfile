@@ -29,7 +29,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install markitdown for document-to-markdown conversion (PDF, DOCX, XLSX, etc.)
-RUN pip3 install --break-system-packages markitdown
+# Install youtube-transcript-api for YouTube transcript extraction
+RUN pip3 install --break-system-packages markitdown youtube-transcript-api
 
 # Set Chromium path for agent-browser
 ENV AGENT_BROWSER_EXECUTABLE_PATH=/usr/bin/chromium
