@@ -24,77 +24,67 @@ Run these commands and compile the results into the report format below.
 
 ### 1. Installed skills
 
-List skill directories available to you:
-
 ```bash
 ls -1 /home/node/.claude/skills/ 2>/dev/null || echo "No skills found"
 ```
 
-Each directory is an installed skill. The directory name is the skill name (e.g., `agent-browser` → `/agent-browser`).
-
-### 2. Available tools
-
-Read the allowed tools from your SDK configuration. You always have access to:
-- **Core:** Bash, Read, Write, Edit, Glob, Grep
-- **Web:** WebSearch, WebFetch
-- **Orchestration:** Task, TaskOutput, TaskStop, TeamCreate, TeamDelete, SendMessage
-- **Other:** TodoWrite, ToolSearch, Skill, NotebookEdit
-- **MCP:** mcp__nanoclaw__* (messaging, tasks, group management)
-
-### 3. MCP server tools
-
-The NanoClaw MCP server exposes these tools (via `mcp__nanoclaw__*` prefix):
-- `send_message` — send a message to the user/group
-- `schedule_task` — schedule a recurring or one-time task
-- `list_tasks` — list scheduled tasks
-- `pause_task` — pause a scheduled task
-- `resume_task` — resume a paused task
-- `cancel_task` — cancel and delete a task
-- `update_task` — update an existing task
-- `register_group` — register a new chat/group (main only)
-
-### 4. Container skills (Bash tools)
-
-Check for executable tools in the container:
+### 2. Container tools
 
 ```bash
 which agent-browser 2>/dev/null && echo "agent-browser: available" || echo "agent-browser: not found"
+which markitdown 2>/dev/null && python3 -c "import youtube_transcript_api; print('youtube-transcript-api: available')" 2>/dev/null || true
 ```
 
-### 5. Group info
+### 3. Group info
 
 ```bash
 ls /workspace/group/CLAUDE.md 2>/dev/null && echo "Group memory: yes" || echo "Group memory: no"
-ls /workspace/extra/ 2>/dev/null && echo "Extra mounts: $(ls /workspace/extra/ 2>/dev/null | wc -l | tr -d ' ')" || echo "Extra mounts: none"
+ls /workspace/extra/ 2>/dev/null
 ```
 
 ## Report format
 
-Present the report as a clean, readable message. Example:
+Present a clean, WhatsApp-readable message. Include only what's actually installed/available.
 
 ```
-📋 *NanoClaw Capabilities*
+*Ce que je peux faire via WhatsApp*
 
-*Installed Skills:*
-• /agent-browser — Browse the web, fill forms, extract data
-• /capabilities — This report
-(list all found skills)
+*Messages*
+• Texte, vocaux (STT → réponse → TTS), images, documents
+• Réactions emoji (<react>👍</react>)
+• Envoyer un message à n'importe quel contact ou groupe (@Batman envoie à Noemi que...)
+• Envoyer depuis un numéro de téléphone direct
 
-*Tools:*
-• Core: Bash, Read, Write, Edit, Glob, Grep
-• Web: WebSearch, WebFetch
-• Orchestration: Task, TeamCreate, SendMessage
-• MCP: send_message, schedule_task, list_tasks, pause/resume/cancel/update_task, register_group
+*Résumés*
+• Résumer une page web : "resume <url>"
+• Résumer une vidéo YouTube + transcript : "resume <youtube-url>"
+• Proposer l'ajout à la base de connaissance après chaque résumé
 
-*Container Tools:*
-• agent-browser: ✓
+*Documents*
+• Réception de PDF, DOCX, XLSX, etc. → conversion automatique en markdown
+• Ajout automatique à la base de connaissance + mise à jour CLAUDE.md
 
-*System:*
-• Group memory: yes/no
-• Extra mounts: N directories
-• Main channel: yes
+*Navigation web*
+• Recherche web (WebSearch)
+• Lecture de pages web (WebFetch)
+• Automatisation navigateur (agent-browser) : formulaires, screenshots, extraction de données
+
+*Tâches planifiées*
+• Créer des tâches récurrentes (cron) ou ponctuelles
+• Lister, pauser, reprendre, annuler des tâches
+
+*Base de connaissance*
+• Lire et écrire des fichiers dans knowledge/
+• Mémoriser des informations entre les sessions
+
+*Système*
+• Groupes enregistrés : (list from available_groups.json)
+• Mémoire groupe : oui/non
+• markitdown : oui/non
+• youtube-transcript-api : oui/non
+• agent-browser : oui/non
 ```
 
-Adapt the output based on what you actually find — don't list things that aren't installed.
+Adapt based on what you actually find. Don't list tools that aren't installed.
 
 **See also:** `/status` for a quick health check of session, workspace, and tasks.

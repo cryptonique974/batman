@@ -1,3 +1,8 @@
+---
+name: pdf-handler
+description: Automatically process incoming documents (PDF, DOCX, XLSX, etc.) sent via WhatsApp. Converts them to markdown with markitdown, saves to knowledge/, and updates CLAUDE.md. Triggers on messages containing [Document: filename — saved to ...].
+---
+
 # Document Handler Skill
 
 When a message contains `[Document: <filename> — saved to /workspace/group/downloads/<filename>]`,

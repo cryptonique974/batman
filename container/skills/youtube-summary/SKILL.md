@@ -1,3 +1,8 @@
+---
+name: youtube-summary
+description: Fetch the transcript and summarize a YouTube video when the user sends "resume <youtube-url>". Uses youtube-transcript-api. After summarizing, always ask if the user wants to save it to the knowledge base.
+---
+
 # YouTube Summary Skill
 
 When a message starts with **"resume"** (case-insensitive) and contains a YouTube URL (youtube.com or youtu.be), execute this workflow automatically.

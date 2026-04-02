@@ -1105,7 +1105,7 @@ container/
     ollama-runner.ts    Backend Ollama
     ollama-history.ts   Historique JSON pour Ollama
     ipc-mcp-stdio.ts    Serveur MCP stdio
-  skills/               Skills disponibles dans les conteneurs
+  skills/               Skills disponibles dans les conteneurs (voir §5 Skills)
   build.sh              Build de l'image Docker
 
 data/
@@ -1117,6 +1117,174 @@ store/
   messages.db           SQLite
   auth/                 Credentials WhatsApp (Baileys)
 ```
+
+---
+
+## 5b. Skills — `container/skills/`
+
+Les skills sont des **instructions markdown** chargées automatiquement dans le contexte de l'agent à chaque spawn de container. Elles permettent d'ajouter des comportements sans modifier le code source.
+
+### Fonctionnement
+
+1. **Définition** : chaque skill est un dossier dans `container/skills/<nom>/` contenant un fichier `SKILL.md`.
+2. **Sync automatique** : à chaque spawn de container, `container-runner.ts` copie tous les dossiers de `container/skills/` vers `data/sessions/<group>/.claude/skills/`. Le dossier `.claude/skills/` est monté à `/home/node/.claude/skills/` dans le container.
+3. **Chargement** : Claude Code SDK charge automatiquement tous les fichiers `SKILL.md` trouvés dans `.claude/skills/` et les injecte dans le contexte de l'agent.
+4. **Priorité** : les skills sont chargées après `CLAUDE.md` et l'auto-memory, mais avant le premier message utilisateur.
+
+### Format d'un fichier SKILL.md
+
+```markdown
+---
+name: nom-de-la-skill
+description: Description utilisée pour décider de la pertinence en contexte futur.
+allowed-tools: Bash(tool:*)   # optionnel — restreint les outils autorisés
+---
+
+# Titre
+
+Instructions pour l'agent...
+```
+
+Le frontmatter YAML est **obligatoire**. Le champ `description` est utilisé par Claude Code pour décider si la skill est pertinente dans le contexte courant.
+
+### Sync manuelle (sans restart)
+
+Pour activer une skill immédiatement sans attendre le prochain spawn :
+```bash
+cp -r container/skills/<nom> data/sessions/<group>/.claude/skills/
+```
+
+### Skills installées
+
+| Skill | Trigger | Rôle |
+|-------|---------|------|
+| `agent-browser` | Toujours disponible | Automation Chromium (WebSearch, formulaires, screenshots) |
+| `capabilities` | `/capabilities` | Rapport des capacités installées du bot |
+| `status` | `/status` | Health check rapide (session, workspace, tâches) |
+| `pdf-handler` | `[Document: ...]` dans le message | Conversion auto de documents en markdown via `markitdown`, ajout à `knowledge/` |
+| `url-summary` | `resume <url>` (non-YouTube) | Fetch et résumé d'une page web, proposition d'ajout à la base de connaissance |
+| `youtube-summary` | `resume <youtube-url>` | Fetch du transcript YouTube + résumé, proposition d'ajout à la base de connaissance |
+| `send-to-group` | "envoie un message à...", "dis à..." | Envoi d'un message WhatsApp vers n'importe quel contact ou groupe via IPC |
+
+---
+
+## 12. Améliorations récentes (avril 2026)
+
+### Réception d'images WhatsApp
+
+**Fichiers modifiés** : `src/channels/whatsapp.ts`, `src/types.ts`, `src/router.ts`
+
+Quand une image est reçue via WhatsApp :
+1. `normalizeMessageContent()` détecte `imageMessage`
+2. `downloadMediaMessage()` télécharge le buffer
+3. Sauvegarde dans `groups/{folder}/media/images/img-<timestamp>-<msgId>.<ext>`
+4. Le champ `image_path` est ajouté à `NewMessage` avec le chemin **container** : `/workspace/group/media/images/<filename>`
+5. `formatMessages()` inclut l'attribut XML `image="..."` dans le message :
+   ```xml
+   <message sender="Mat" time="..." image="/workspace/group/media/images/img-xxx.jpg">[Image]</message>
+   ```
+6. L'agent peut lire l'image via le tool `Read` avec ce chemin.
+
+Si l'image a une légende, celle-ci est utilisée comme contenu du message. Sinon, le contenu est `[Image]`.
+
+### Réception de documents WhatsApp
+
+**Fichiers modifiés** : `src/channels/whatsapp.ts`
+
+Même principe que les images, pour `documentMessage` (PDF, DOCX, XLSX, etc.) :
+1. Téléchargement dans `groups/{folder}/downloads/<filename>`
+2. Message envoyé à l'agent : `[Document: <filename> — saved to /workspace/group/downloads/<filename>]`
+3. La skill `pdf-handler` détecte ce pattern et exécute automatiquement :
+   - `markitdown downloads/<filename> > knowledge/<filename>.md`
+   - Vérification que le fichier .md est non-vide
+   - Update de `CLAUDE.md` sous `## Knowledge Base`
+   - Confirmation à l'utilisateur (sans mentionner les fichiers)
+
+**Dépendance container** : `markitdown` (Python, installé via `pip3`).
+
+### Réactions emoji
+
+**Fichiers modifiés** : `src/types.ts`, `src/channels/whatsapp.ts`, `src/router.ts`, `src/index.ts`
+
+L'agent peut réagir à un message en incluant `<react>EMOJI</react>` dans sa réponse :
+- `extractReaction(text)` dans `router.ts` extrait l'emoji et le texte restant
+- `WhatsAppChannel.sendReaction(jid, emoji)` envoie la réaction via Baileys sur le dernier message reçu du JID
+- Si la réponse contient à la fois une réaction et du texte, les deux sont envoyés
+- `lastMsgKey` (Map privée de `WhatsAppChannel`) stocke la clé du dernier message reçu par JID pour cibler la réaction
+
+```typescript
+// Exemple de réponse agent
+"<react>👍</react> Bien reçu, je m'en occupe !"
+// → réaction 👍 + message texte "Bien reçu, je m'en occupe !"
+```
+
+### Correction du bug voice reply
+
+**Fichier modifié** : `src/channels/whatsapp.ts`
+
+**Bug** : si un message texte arrivait pendant le traitement d'un vocal (avant que la réponse vocale soit envoyée), le flag `voiceReplyJids` était consommé par la réponse au texte, qui partait donc en audio.
+
+**Fix** : tout message non-vocal reçu efface immédiatement le flag pour ce JID :
+```typescript
+if (!isVoiceMessage(msg)) {
+  this.voiceReplyJids.delete(chatJid);
+  delete this.voiceReplyLang[chatJid];
+}
+```
+
+**Règle** : texte → texte, vocal → vocal, sauf demande explicite dans le vocal.
+
+### Envoi cross-group
+
+**Skill** : `container/skills/send-to-group/`
+
+L'agent (groupe `mat`, qui est `isMain`) peut envoyer un message à n'importe quel JID WhatsApp en écrivant un fichier IPC :
+```json
+{ "type": "message", "chatJid": "5219981698374@s.whatsapp.net", "text": "..." }
+```
+
+L'IPC watcher autorise l'envoi car `isMain = true`. Fonctionne avec :
+- Les groupes enregistrés (trouvés via `available_groups.json`)
+- N'importe quel numéro de téléphone (format `{numéro_sans_+}@s.whatsapp.net`)
+
+**Fix associé** : `getAvailableGroups()` incluait uniquement les chats de type `@g.us` (groupes). Corrigé pour inclure aussi les chats directs enregistrés (`@s.whatsapp.net`).
+
+### Résumé de pages web et vidéos YouTube
+
+**Skills** : `url-summary`, `youtube-summary`
+
+- `resume <url>` → WebFetch → résumé → propose ajout à `knowledge/`
+- `resume <youtube-url>` → `youtube-transcript-api` → résumé du transcript → propose ajout à `knowledge/`
+
+**Dépendance container** : `youtube-transcript-api` (Python, `pip3`).
+
+Workflow d'ajout à la base de connaissance :
+1. Génération d'un nom de fichier depuis le titre
+2. Sauvegarde : `knowledge/<filename>.md`
+3. Vérification existence avant toute modification de `CLAUDE.md`
+4. Update `CLAUDE.md` → section `## Knowledge Base`
+
+### Nouveaux groupes enregistrés
+
+| Groupe | JID | Dossier |
+|--------|-----|---------|
+| Noemi | `5219981698374@s.whatsapp.net` | `groups/noemi/` (restauré depuis `noemi.old`) |
+| Lila | `262692361745@s.whatsapp.net` | `groups/lila/` |
+| Maloee | `262693632312@s.whatsapp.net` | `groups/maloee/` |
+| Cathy | `262692942678@s.whatsapp.net` | `groups/cathy/` |
+
+### Dépendances Python ajoutées au container
+
+```dockerfile
+RUN pip3 install --break-system-packages markitdown youtube-transcript-api
+```
+
+| Package | Rôle |
+|---------|------|
+| `markitdown` | Conversion PDF/DOCX/XLSX/HTML → Markdown |
+| `youtube-transcript-api` | Fetch transcript YouTube sans télécharger la vidéo |
+
+---
 
 # Mémoire des Agents — Analyse du Code
 

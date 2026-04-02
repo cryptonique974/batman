@@ -1,3 +1,8 @@
+---
+name: url-summary
+description: Fetch and summarize any web page URL when the user sends "resume <url>" (non-YouTube). After summarizing, always ask if the user wants to save it to the knowledge base.
+---
+
 # URL Summary Skill
 
 When a message starts with the word **"resume"** (case-insensitive) followed by a URL that is **NOT a YouTube URL** (not youtube.com or youtu.be), execute this workflow automatically. YouTube URLs are handled by the youtube-summary skill.

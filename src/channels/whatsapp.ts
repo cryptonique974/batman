@@ -258,6 +258,13 @@ export class WhatsAppChannel implements Channel {
             let finalContent = content;
             let imagePath: string | undefined;
 
+            // If this is a non-voice message, clear the voice reply flag —
+            // a text/image/doc message cancels any pending voice reply for this JID.
+            if (!isVoiceMessage(msg)) {
+              this.voiceReplyJids.delete(chatJid);
+              delete this.voiceReplyLang[chatJid];
+            }
+
             if (isVoiceMessage(msg)) {
               try {
                 const { text, language } = await transcribeAudioMessage(
