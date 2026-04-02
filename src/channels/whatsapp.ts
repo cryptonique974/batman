@@ -50,6 +50,7 @@ export class WhatsAppChannel implements Channel {
   private groupSyncTimerStarted = false;
   private voiceReplyJids = new Set<string>();
   private voiceReplyLang: Record<string, string> = {};
+  private lastMsgKey: Record<string, { id?: string | null; remoteJid?: string | null; participant?: string | null; fromMe?: boolean | null }> = {};
 
   private opts: WhatsAppChannelOpts;
 
@@ -206,10 +207,14 @@ export class WhatsAppChannel implements Channel {
             isGroup,
           );
 
+          // Track last message key per JID for reactions
+          this.lastMsgKey[chatJid] = msg.key;
+
           // Only deliver full message for registered groups
           const groups = this.opts.registeredGroups();
           if (groups[chatJid]) {
             const isImage = !!normalized.imageMessage;
+            const isDocument = !!normalized.documentMessage;
             const content =
               normalized.conversation ||
               normalized.extendedTextMessage?.text ||
@@ -218,8 +223,8 @@ export class WhatsAppChannel implements Channel {
               '';
 
             // Skip protocol messages with no text content (encryption keys, read receipts, etc.)
-            // but allow voice messages and image messages through
-            if (!content && !isVoiceMessage(msg) && !isImage) continue;
+            // but allow voice messages, image messages, and document messages through
+            if (!content && !isVoiceMessage(msg) && !isImage && !isDocument) continue;
 
             const sender = msg.key.participant || msg.key.remoteJid || '';
             const senderName = msg.pushName || sender.split('@')[0];
@@ -311,6 +316,43 @@ export class WhatsAppChannel implements Channel {
               }
             }
 
+            // Download and save document messages
+            if (isDocument) {
+              try {
+                const docBuffer = (await downloadMediaMessage(
+                  msg,
+                  'buffer',
+                  {},
+                  {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    logger: console as any,
+                    reuploadRequest: this.sock.updateMediaMessage,
+                  },
+                )) as Buffer;
+
+                const rawName =
+                  normalized.documentMessage!.fileName || 'document';
+                // Sanitize filename: keep alphanumeric, dots, dashes, underscores, spaces
+                const filename = rawName.replace(/[^a-zA-Z0-9.\-_ ]/g, '_');
+                const folder = groups[chatJid].folder;
+                const downloadsDir = path.join(
+                  GROUPS_DIR,
+                  folder,
+                  'downloads',
+                );
+                fs.mkdirSync(downloadsDir, { recursive: true });
+                fs.writeFileSync(path.join(downloadsDir, filename), docBuffer);
+                finalContent = `[Document: ${filename} — saved to /workspace/group/downloads/${filename}]`;
+                logger.info(
+                  { chatJid, filename, bytes: docBuffer.length },
+                  'Document saved',
+                );
+              } catch (err) {
+                logger.error({ err }, 'Failed to download/save document');
+                finalContent = '[Document - download failed]';
+              }
+            }
+
             this.opts.onMessage(chatJid, {
               id: msg.key.id || '',
               chat_jid: chatJid,
@@ -376,6 +418,20 @@ export class WhatsAppChannel implements Channel {
         { jid, err, queueSize: this.outgoingQueue.length },
         'Failed to send, message queued',
       );
+    }
+  }
+
+  async sendReaction(jid: string, emoji: string): Promise<void> {
+    const key = this.lastMsgKey[jid];
+    if (!key) {
+      logger.warn({ jid }, 'sendReaction: no message key found for JID');
+      return;
+    }
+    try {
+      await this.sock.sendMessage(jid, { react: { text: emoji, key } });
+      logger.info({ jid, emoji }, 'Reaction sent');
+    } catch (err) {
+      logger.error({ err, jid, emoji }, 'Failed to send reaction');
     }
   }
 

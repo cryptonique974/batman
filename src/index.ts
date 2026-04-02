@@ -46,7 +46,7 @@ import {
 import { GroupQueue } from './group-queue.js';
 import { resolveGroupFolderPath } from './group-folder.js';
 import { startIpcWatcher } from './ipc.js';
-import { findChannel, formatMessages, formatOutbound } from './router.js';
+import { findChannel, formatMessages, formatOutbound, extractReaction } from './router.js';
 import {
   restoreRemoteControl,
   startRemoteControl,
@@ -221,8 +221,14 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
           ? result.result
           : JSON.stringify(result.result);
       // Strip <internal>...</internal> blocks — agent uses these for internal reasoning
-      const text = raw.replace(/<internal>[\s\S]*?<\/internal>/g, '').trim();
+      const stripped = raw.replace(/<internal>[\s\S]*?<\/internal>/g, '').trim();
+      // Extract <react>EMOJI</react> tag if present
+      const { emoji, rest: text } = extractReaction(stripped);
       logger.info({ group: group.name }, `Agent output: ${raw.length} chars`);
+      if (emoji) {
+        await channel.sendReaction?.(chatJid, emoji);
+        outputSentToUser = true;
+      }
       if (text) {
         await channel.sendMessage(chatJid, text);
         outputSentToUser = true;

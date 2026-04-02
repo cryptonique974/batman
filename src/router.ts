@@ -29,6 +29,15 @@ export function stripInternalTags(text: string): string {
   return text.replace(/<internal>[\s\S]*?<\/internal>/g, '').trim();
 }
 
+/** Extract a <react>EMOJI</react> tag from agent output. Returns the emoji and the remaining text. */
+export function extractReaction(text: string): { emoji: string | null; rest: string } {
+  const match = text.match(/<react>([\s\S]*?)<\/react>/);
+  if (!match) return { emoji: null, rest: text };
+  const emoji = match[1].trim();
+  const rest = text.replace(/<react>[\s\S]*?<\/react>/g, '').trim();
+  return { emoji, rest };
+}
+
 export function formatOutbound(rawText: string): string {
   const text = stripInternalTags(rawText);
   if (!text) return '';
