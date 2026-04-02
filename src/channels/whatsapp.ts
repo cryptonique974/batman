@@ -50,7 +50,15 @@ export class WhatsAppChannel implements Channel {
   private groupSyncTimerStarted = false;
   private voiceReplyJids = new Set<string>();
   private voiceReplyLang: Record<string, string> = {};
-  private lastMsgKey: Record<string, { id?: string | null; remoteJid?: string | null; participant?: string | null; fromMe?: boolean | null }> = {};
+  private lastMsgKey: Record<
+    string,
+    {
+      id?: string | null;
+      remoteJid?: string | null;
+      participant?: string | null;
+      fromMe?: boolean | null;
+    }
+  > = {};
 
   private opts: WhatsAppChannelOpts;
 
@@ -224,7 +232,8 @@ export class WhatsAppChannel implements Channel {
 
             // Skip protocol messages with no text content (encryption keys, read receipts, etc.)
             // but allow voice messages, image messages, and document messages through
-            if (!content && !isVoiceMessage(msg) && !isImage && !isDocument) continue;
+            if (!content && !isVoiceMessage(msg) && !isImage && !isDocument)
+              continue;
 
             const sender = msg.key.participant || msg.key.remoteJid || '';
             const senderName = msg.pushName || sender.split('@')[0];
@@ -335,11 +344,7 @@ export class WhatsAppChannel implements Channel {
                 // Sanitize filename: keep alphanumeric, dots, dashes, underscores, spaces
                 const filename = rawName.replace(/[^a-zA-Z0-9.\-_ ]/g, '_');
                 const folder = groups[chatJid].folder;
-                const downloadsDir = path.join(
-                  GROUPS_DIR,
-                  folder,
-                  'downloads',
-                );
+                const downloadsDir = path.join(GROUPS_DIR, folder, 'downloads');
                 fs.mkdirSync(downloadsDir, { recursive: true });
                 fs.writeFileSync(path.join(downloadsDir, filename), docBuffer);
                 finalContent = `[Document: ${filename} — saved to /workspace/group/downloads/${filename}]`;

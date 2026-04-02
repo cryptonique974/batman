@@ -30,7 +30,10 @@ export function stripInternalTags(text: string): string {
 }
 
 /** Extract a <react>EMOJI</react> tag from agent output. Returns the emoji and the remaining text. */
-export function extractReaction(text: string): { emoji: string | null; rest: string } {
+export function extractReaction(text: string): {
+  emoji: string | null;
+  rest: string;
+} {
   const match = text.match(/<react>([\s\S]*?)<\/react>/);
   if (!match) return { emoji: null, rest: text };
   const emoji = match[1].trim();
