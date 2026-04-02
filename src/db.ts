@@ -660,6 +660,46 @@ export function getAllRegisteredGroups(): Record<string, RegisteredGroup> {
   return result;
 }
 
+// --- Dashboard queries ---
+
+export function getDashboardGroups(): Array<Record<string, unknown>> {
+  return db
+    .prepare(
+      `SELECT rg.jid, rg.name, rg.folder, rg.requires_trigger, rg.is_main, rg.model_provider,
+              c.channel, c.is_group, c.last_message_time
+       FROM registered_groups rg
+       LEFT JOIN chats c ON c.jid = rg.jid
+       ORDER BY c.last_message_time DESC`,
+    )
+    .all() as Array<Record<string, unknown>>;
+}
+
+export function getDashboardTasks(): Array<Record<string, unknown>> {
+  return db
+    .prepare(
+      `SELECT id, group_folder, chat_jid, prompt, schedule_type, schedule_value,
+              next_run, last_run, last_result, status, created_at
+       FROM scheduled_tasks
+       ORDER BY status ASC, next_run ASC`,
+    )
+    .all() as Array<Record<string, unknown>>;
+}
+
+export function getDashboardMessages(limit: number): Array<Record<string, unknown>> {
+  return db
+    .prepare(
+      `SELECT m.id, m.chat_jid, m.sender, m.sender_name, m.content, m.timestamp,
+              m.is_from_me, m.is_bot_message,
+              COALESCE(rg.name, c.name) AS group_name
+       FROM messages m
+       LEFT JOIN chats c ON c.jid = m.chat_jid
+       LEFT JOIN registered_groups rg ON rg.jid = m.chat_jid
+       ORDER BY m.timestamp DESC
+       LIMIT ?`,
+    )
+    .all(limit) as Array<Record<string, unknown>>;
+}
+
 // --- JSON migration ---
 
 function migrateJsonState(): void {

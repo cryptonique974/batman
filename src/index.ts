@@ -10,6 +10,7 @@ import {
   TRIGGER_PATTERN,
 } from './config.js';
 import { startCredentialProxy } from './credential-proxy.js';
+import { startDashboard } from './dashboard.js';
 import './channels/index.js';
 import {
   getChannelFactory,
@@ -505,6 +506,9 @@ async function main(): Promise<void> {
     CREDENTIAL_PROXY_PORT,
     PROXY_BIND_HOST,
   );
+
+  // Start dashboard web UI
+  startDashboard();
 
   // Graceful shutdown handlers
   const shutdown = async (signal: string) => {
